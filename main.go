@@ -13,6 +13,31 @@ import (
 // - Prepended URL in cleanup step is always the Wikipedia start URL
 // - HTTPS used exclusively
 
+func TrimDoubleSlashPrefix(link Link) Link {
+	link.Url = strings.TrimPrefix(link.Url, "//")
+	return link
+}
+
+func PrefixWithMissingDomain(link Link) Link {
+	if strings.HasPrefix(link.Url, "/") {
+		link.Url = fmt.Sprintf("%s%s", START_URL, link.Url)
+	}
+	return link
+}
+
+func PrefixWithMissingProtocol(link Link) Link {
+	if !strings.HasPrefix(link.Url, "http://") && !strings.HasPrefix(link.Url, "https://") {
+		link.Url = fmt.Sprintf("%s%s", "https://", link.Url)
+	}
+	return link
+}
+
+var Cleaners = []CleanFunction{
+	TrimDoubleSlashPrefix,
+	PrefixWithMissingDomain,
+	PrefixWithMissingProtocol,
+}
+
 func NewLink(url string) Link {
 	return Link{
 		Url: url,
@@ -23,18 +48,11 @@ type Link struct {
 	Url string
 }
 
+type CleanFunction func(Link) Link
+
 func (l Link) Clean() Link {
-	// Remove "//" prefix
-	l.Url = strings.TrimPrefix(l.Url, "//")
-
-	// Pre-pend website domain name to keys with "/"
-	if strings.HasPrefix(l.Url, "/") {
-		l.Url = fmt.Sprintf("%s%s", START_URL, l.Url)
-	}
-
-	// Pre-pend HTTPS protocol if not exists
-	if !strings.HasPrefix(l.Url, "http://") && !strings.HasPrefix(l.Url, "https://") {
-		l.Url = fmt.Sprintf("%s%s", "https://", l.Url)
+	for _, currentCleanFunc := range Cleaners {
+		l = currentCleanFunc(l)
 	}
 
 	return l
